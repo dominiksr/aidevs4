@@ -1,12 +1,12 @@
 import csv
 import json
 import requests
+import re # Dodane do wyciągnięcia roku z pełnej daty
+import os
 from io import StringIO
 from openai import OpenAI
 from pydantic import BaseModel
 from typing import List
-
-import os
 from dotenv import load_dotenv
 
 # Wczytanie zmiennych z pliku .env
@@ -16,7 +16,6 @@ load_dotenv()
 agent_api_key = os.getenv("AG3NTS_API_KEY")
 openai_api_key = os.getenv("OPENAI_API_KEY")
 azure_endpoint = os.getenv("AZURE_ENDPOINT")
-
 
 # ==========================================
 # KONFIGURACJA KLUCZY API
@@ -44,7 +43,7 @@ class TaggingResponse(BaseModel):
 def main():
     print("1. Pobieranie danych z huba...")
     csv_url = f"https://hub.ag3nts.org/data/{AG3NTS_API_KEY}/people.csv"
-    print(csv_url)
+    # print(csv_url)
     response = requests.get(csv_url)
     response.raise_for_status()
     
@@ -56,13 +55,20 @@ def main():
     filtered_people =[]
     
     for row in reader:
-        # Zakładamy standardowe nazwy kolumn na podstawie przykładu JSON i opisu
-        # (Jeśli plik CSV ma inne nazwy kolumn, np. 'rok_urodzenia' zamiast 'born', 
-        #  należy je tutaj odpowiednio dostosować)
         try:
-            born = int(row['born'])
+            # Pobieramy datę z 'birthDate' i wyciągamy bezpiecznie 4-cyfrowy rok
+            birth_date_str = row['birthDate'].strip()
+            
+            # Wyszukujemy rok (liczba od 1900 do 2099) w ciągu znaków
+            year_match = re.search(r'\b(19\d{2}|20\d{2})\b', birth_date_str)
+            if not year_match:
+                continue
+                
+            born = int(year_match.group(1))
             age_in_2026 = 2026 - born
-            city = row['city'].strip()
+            
+            # Kolumna miejsca urodzenia to 'birthPlace'
+            city = row['birthPlace'].strip()
             gender = row['gender'].strip()
             
             # Warunki: Mężczyzna, wiek 20-40 lat w 2026 r., urodzony w Grudziądzu
@@ -71,18 +77,18 @@ def main():
                     "name": row['name'],
                     "surname": row['surname'],
                     "gender": gender,
-                    "born": born,
-                    "city": city,
+                    "born": born,         # Przypisujemy wyciągnięty rok (int) - jest wymagany w outoucie
+                    "city": city,         # Miejscowość (jako pole 'city' dla outputu)
                     "job": row['job']
                 })
         except (ValueError, KeyError) as e:
-            # Ignoruj wiersze z uszkodzonymi danymi (jeśli takie istnieją)
+            # Ignoruj wiersze z uszkodzonymi/brakującymi danymi
             continue
 
     print(f"   Znaleziono {len(filtered_people)} osób spełniających kryteria bazowe.")
 
     if not filtered_people:
-        print("Brak osób spełniających kryteria! Sprawdź nazwy kolumn w pobranym pliku CSV.")
+        print("Brak osób spełniających kryteria! Wciąż jest błąd w filtrowaniu.")
         return
 
     print("3. Kategoryzacja zawodów (Job Tagging) przy pomocy LLM...")
@@ -108,13 +114,13 @@ def main():
 
     # Wykorzystujemy nową metodę .parse() z OpenAI SDK do wymuszenia zgodności ze schematem Pydantic
     completion = client.beta.chat.completions.parse(
-        model="gpt-4o-2024-08-06", # Model obsługujący zaawansowane Structured Outputs
+        model="gpt-5.3-chat", # Skrócona nazwa modelu (wszystkie najnowsze wersje obsługują ten format)
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Oto lista zawodów do otagowania:\n{jobs_to_tag}"}
         ],
         response_format=TaggingResponse,
-        temperature=0.1 # Niska temperatura dla deterministycznych wyników
+        temperature=1 #0.1# Niska temperatura dla deterministycznych wyników
     )
 
     tagging_results = completion.choices[0].message.parsed.results

@@ -15,15 +15,21 @@ load_dotenv()
 # Przypisanie klucza do zmiennej w Pythonie
 agent_api_key = os.getenv("AG3NTS_API_KEY")
 openai_api_key = os.getenv("OPENAI_API_KEY")
+azure_endpoint = os.getenv("AZURE_ENDPOINT")
+
 
 # ==========================================
 # KONFIGURACJA KLUCZY API
 # ==========================================
 AG3NTS_API_KEY = agent_api_key
 OPENAI_API_KEY = openai_api_key
+AZURE_ENDPOINT = azure_endpoint
 
 # Inicjalizacja klienta OpenAI
-client = OpenAI(api_key=OPENAI_API_KEY)
+client = OpenAI(
+    base_url=f"{AZURE_ENDPOINT}",
+    api_key=OPENAI_API_KEY
+)
 
 # ==========================================
 # DEFINICJA STRUKTURY DLA STRUCTURED OUTPUTS
@@ -38,6 +44,7 @@ class TaggingResponse(BaseModel):
 def main():
     print("1. Pobieranie danych z huba...")
     csv_url = f"https://hub.ag3nts.org/data/{AG3NTS_API_KEY}/people.csv"
+    print(csv_url)
     response = requests.get(csv_url)
     response.raise_for_status()
     

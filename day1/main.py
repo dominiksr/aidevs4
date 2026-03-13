@@ -120,7 +120,7 @@ def main():
             {"role": "user", "content": f"Oto lista zawodów do otagowania:\n{jobs_to_tag}"}
         ],
         response_format=TaggingResponse,
-        temperature=1 #0.1# Niska temperatura dla deterministycznych wyników
+        temperature=1
     )
 
     tagging_results = completion.choices[0].message.parsed.results

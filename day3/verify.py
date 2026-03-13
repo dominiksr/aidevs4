@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Skonfiguruj poniższe:
-TWOJ_URL = "https://uginn-82-177-130-170.a.free.pinggy.link"  # np. "https://asdfg-123.a.pinggy.io"
+TWOJ_URL = "https://udddddddddlink"  # np. "https://asdfg-123.a.pinggy.io"
 AG3NTS_API_KEY = os.getenv("AG3NTS_API_KEY")
 
 payload = {
